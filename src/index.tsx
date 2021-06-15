@@ -3,10 +3,13 @@ import ReactDOM from 'react-dom';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import { EndpointsProvider } from './core';
 
 ReactDOM.render(
   <React.StrictMode>
-    <App />
+    <EndpointsProvider>
+      <App />
+    </EndpointsProvider>
   </React.StrictMode>,
   document.getElementById('root')
 );
