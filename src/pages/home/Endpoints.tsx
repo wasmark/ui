@@ -10,9 +10,10 @@ const Wrapper = styled.div`
 const List = styled.ul``;
 
 const Endpoints: FC = (): ReactElement => {
-  const { endpoints, setEndpoints, add, toggleChecked } = useContext(EndpointsContext);
+  const { endpoints, add, remove, toggleChecked } = useContext(EndpointsContext);
   const [ endpoint, setEndpoint ] = useState<string>('');
 
+  console.log('render end');
   return (
     <Wrapper>
       <Row style={{ margin: '0 auto', height: '40px'}}>
@@ -38,7 +39,7 @@ const Endpoints: FC = (): ReactElement => {
                 <Checkbox onChange={() => toggleChecked(index)} checked={endpoint.enabled} />
               }</Col>
               <Col span={3}>{
-                <DeleteOutlined />
+                <DeleteOutlined onClick={() => remove(index)} />
               }</Col>
             </Row>
           )
