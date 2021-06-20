@@ -17,7 +17,6 @@ interface Endpoint {
 
 interface EndpointsContextProps {
   endpoints: Endpoint[];
-  setEndpoints: React.Dispatch<React.SetStateAction<Endpoint[]>>;
   add: (domain: string) => void;
   remove: (domain: number) => void;
   toggleChecked: (index: number) => void;
@@ -175,7 +174,6 @@ export const EndpointsProvider = React.memo(
 
     return <EndpointsContext.Provider value={{
       endpoints,
-      setEndpoints,
       add,
       remove,
       toggleChecked,

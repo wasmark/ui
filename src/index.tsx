@@ -3,12 +3,14 @@ import ReactDOM from 'react-dom';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-import { EndpointsProvider } from './core';
+import { EndpointsProvider, UploadedContractsProvider } from './core';
 
 ReactDOM.render(
   <React.StrictMode>
     <EndpointsProvider>
-      <App />
+      <UploadedContractsProvider>
+        <App />
+      </UploadedContractsProvider>
     </EndpointsProvider>
   </React.StrictMode>,
   document.getElementById('root')
