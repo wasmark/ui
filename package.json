@@ -8,6 +8,7 @@
     "@polkadot/ui-keyring": "^0.82.1",
     "@polkadot/ui-settings": "^0.82.1",
     "antd": "^4.16.3",
+    "i18next": "^20.3.2",
     "lodash": "^4.17.21",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
