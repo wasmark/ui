@@ -1,2 +1,3 @@
-export * from  './Endpoints.provider';
-export * from  './UploadedCodes.provider';
+export * from  './endpoints.provider';
+export * from  './uploaded-codes.provider';
+export * from  './accounts.provider';

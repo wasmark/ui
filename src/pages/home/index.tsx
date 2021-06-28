@@ -4,6 +4,7 @@ import { Button } from 'antd';
 import Endpoints from './Endpoints';
 import Upload from './upload';
 import UploadedList from './UploadedList';
+import Accounts from '../Accounts';
 
 const Wrapper = styled.div``;
 
@@ -23,6 +24,7 @@ const Home: FC = (): ReactElement => {
       
       <Upload visible={uploadVisible} onClose={onClose} />
       <UploadedList />
+      <Accounts />
     </Wrapper>
   );
 };

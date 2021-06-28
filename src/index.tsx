@@ -3,13 +3,15 @@ import ReactDOM from 'react-dom';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-import { EndpointsProvider, UploadedContractsProvider } from './core';
+import { AccountsProvider, EndpointsProvider, UploadedContractsProvider } from './core';
 
 ReactDOM.render(
   <React.StrictMode>
     <EndpointsProvider>
       <UploadedContractsProvider>
-        <App />
+        <AccountsProvider>
+          <App />
+        </AccountsProvider>
       </UploadedContractsProvider>
     </EndpointsProvider>
   </React.StrictMode>,
