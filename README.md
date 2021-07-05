@@ -1,46 +1,167 @@
-# Getting Started with Create React App
+ RPC-CORE: submitAndWatchExtrinsic(extrinsic: Extrinsic): ExtrinsicStatus:: 1014: Priority is too low: (201077685142 vs 201077684845): The transaction has too low priority to replace another 
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+ 
+  const onStart = useCallback(async () => {
+    console.log(mergedExtrinsics);
+    const { tokenDecimals } = await api.rpc.system.properties();
+    const decimals = tokenDecimals.toHuman() as string[];
+    const decimal = parseInt(decimals[0]);
 
-## Available Scripts
+    Object.keys(mergedExtrinsics).forEach(codeHash => {
+      const extrinsics = mergedExtrinsics[codeHash];
+      
+      if (!extrinsics?.sender) {
+        return;
+      }
 
-In the project directory, you can run:
+      const code = codes.find(code => code.abi.project.source.wasmHash.toString() === codeHash);
 
-### `yarn start`
+      if (!code) {
+        return;
+      }
+      
+      const codePromise =  new CodePromise(api, code.abi, undefined);
+      const method = code.abi.constructors[extrinsics.constructorIndex].method;
+      const endowment = (new BN(10)).mul(
+        (new BN(10)).pow(new BN(decimal)
+      ));
+      const gasLimit = (new BN(200000)).mul(new BN(1000000));
+      const salt = randomAsHex();
+      let rawCode: string;
+      let data: string;
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+      const tx = codePromise.tx[method]({
+        gasLimit,
+        value: endowment,
+        salt,
+      }, ...extrinsics.constructorParams);
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+      const hex = tx.toHex();
+      let extrinsicCall: Call;
 
-### `yarn test`
+      try {
+        // cater for an extrinsic input...
+        extrinsicCall = api.createType('Call', api.tx(hex).method);
+      } catch (e) {
+        extrinsicCall = api.createType('Call', hex);
+      }
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+      const { params, values } = extractState(extrinsicCall);
+      const dataIndex = params.findIndex(p => p.name === 'data');
+      const codeIndex = params.findIndex(p => p.name === 'code');
+      data = values[dataIndex].value.toHex();
+      rawCode = values[codeIndex].value.toHex();
 
-### `yarn build`
+      const rawTx = api.tx.contracts.instantiateWithCode(endowment, gasLimit, rawCode, data, salt);
+      const account = accounts.find(account => extrinsics.sender &&
+        keyring.encodeAddress(keyring.decodeAddress(account.address), 0) ===
+          keyring.encodeAddress(keyring.decodeAddress(extrinsics.sender), 0)
+      )
+      console.log('deploy account',  code.name, account)
+      if (!account) {
+        return;
+      }
+      const pair = keyring.createFromUri(account.mnemonic);
+      rawTx.signAndSend(pair, {}, handleTxResultsNoQueen('signAndSend', {
+        async txSuccessCb(status) {
+          const data = status.events.find(
+            event => event.event.section.toLowerCase() === 'contracts' &&
+              event.event.method.toLowerCase() === 'instantiated'
+          )?.event.data.toHuman() as (string[] | undefined);
+          const contractAddress = data && data[1];
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+          console.log('extrinsics.messages', extrinsics.messages);
+          console.log('contractAddress', contractAddress)
+          
+          if (!contractAddress) {
+            return;
+          }
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+          const contractPromise = new ContractPromise(api, code.abi, contractAddress);
+          const senders = extrinsics.messages
+            .reduce(
+              (all: string[], curr) => curr.sender ?
+                all.concat(curr.sender) : all,
+              [],
+            );
+          const senderNoncePromises = senders
+            .map(address =>
+              api.query.system.account(address)
+            );
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+          // handle
+          const sendersNonceMap = (await Promise.all(senderNoncePromises))
+            .reduce((all: { [key: string]: number }, curr, index) => {
+              all[senders[index]] = curr.nonce.toNumber();
 
-### `yarn eject`
+              return all;
+            }, {});
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+          [1,1,1].forEach(() => {
+            extrinsics.messages.forEach(async (message, index) => {
+              if (!message.sender) {
+                try {
+                  const query = await contractPromise.query[message.message.method](READ_ADDR, {}, ...message.params);
+                  console.log('query', message.message.method, query.output?.toHuman())
+                } catch (e) {}
+  
+                return;
+              }
+  
+              const tx = contractPromise.tx[message.message.method]({
+                gasLimit,
+                value: 0,
+              }, ...message.params);
+              
+              const hex = tx.toHex();
+              let extrinsicCall: Call;
+        
+              try {
+                // cater for an extrinsic input...
+                extrinsicCall = api.createType('Call', api.tx(hex).method);
+              } catch (e) {
+                extrinsicCall = api.createType('Call', hex);
+              }
+        
+              const { params, values } = extractState(extrinsicCall);
+              const dataIndex = params.findIndex(p => p.name === 'data');
+              const data = values[dataIndex].value.toHex();
+              const rawTx = api.tx.contracts.call(contractAddress, endowment, gasLimit, data);
+  
+              const account = accounts.find(account => message.sender &&
+                keyring.encodeAddress(keyring.decodeAddress(account.address), 0) ===
+                  keyring.encodeAddress(keyring.decodeAddress(message.sender), 0)
+              )
+              console.log('sender account', account)
+              if (!account) {
+                return;
+              }
+  
+              const pair = keyring.createFromUri(account.mnemonic);
+  
+              sendersNonceMap[account.address] ++;
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+              console.log(message.message.method, 'nonce', sendersNonceMap[account.address]);
+              rawTx.signAndSend(pair, {
+                nonce: sendersNonceMap[account.address],
+              }, handleTxResultsNoQueen('signAndSend', {
+                txSuccessCb(status) {
+                  console.log('exec success', message.message.method, status)
+                },
+                txFailedCb(status) {
+                  console.log('exec failed', message.message.method, status)
+                },
+                txUpdateCb(status) {
+                  console.log('exec update status', status);
+                }
+              }, () => {}));
+            })
+          });
+        },
+        txFailedCb() {
+          console.log('upload failed', code.name)
+        }
+      }, () => {}));
+    });
+  }, [mergedExtrinsics]);
